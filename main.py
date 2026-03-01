@@ -11,8 +11,8 @@ from gradio_client import Client, handle_file
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # --- কনফিগারেশন ---
-TOKEN = "8629018568:AAHCCAhFMaS3BEH9eXqTmtDa7bD79Otw2Vw"
-HF_TOKEN = "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" # Hugging Face থেকে পাওয়া টোকেনটি এখানে দিন
+TOKEN = "8629018568:AAFeMK4wTJTxZ0HbVQdTFAeXCeLW4hIbjo4"
+HF_TOKEN = "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" # Hugging Face থেকে পাওয়া টোকেনটি এখানে দিন
 ADMIN_ID = 6941003064 
 CHANNEL_USERNAME = "@SH_tricks"
 ADS_MONETAG = "https://omg10.com/4/10644374"
