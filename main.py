@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=lo
 
 # --- কনফিগারেশন ---
 TOKEN = "8629018568:AAGODbfefbVEc3QFwniepBMNhXmZ4cTbhiQ"
-HF_TOKEN = os.environ.get("HF_TOKEN")" 
+HF_TOKEN = os.environ.get("HF_TOKEN")
 ADMIN_ID = 6941003064 
 CHANNEL_USERNAME = "@SH_tricks"
 ADS_MONETAG = "https://omg10.com/4/10644374"
