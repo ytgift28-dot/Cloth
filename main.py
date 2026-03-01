@@ -1,7 +1,6 @@
 import os
 import logging
 import threading
-import asyncio
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
@@ -11,8 +10,7 @@ from gradio_client import Client, handle_file
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # --- কনফিগারেশন ---
-TOKEN = "8629018568:AAGJMsqrWUSwmsvRZrF0IfXCnb2vwrMWMcE"
-ADMIN_ID = 6941003064
+TOKEN = "8629018568:AAEZyaeP63ETmYThyUJvko7GcHX8ZOBpW-U"
 CHANNEL_USERNAME = "@SH_tricks"
 ADS_MONETAG = "https://omg10.com/4/10644374"
 ADS_ADSTERRA = "https://www.effectivegatecpm.com/wnbk2zjv?key=75442aee9e8b64a0d71c17a99228474d"
@@ -26,46 +24,31 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        self.wfile.write(b"Bot is Running Perfectly on Render!")
+        self.wfile.write(b"Bot is Running via Web Service!")
 
 def run_health_check():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    logging.info(f"Health check server started on port {port}")
     server.serve_forever()
 
 # --- বটের লজিক ---
-async def is_subscribed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=update.effective_user.id)
-        return member.status in ['member', 'administrator', 'creator']
-    except: return False
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id not in user_credits: user_credits[user_id] = 5 # টেস্টের জন্য ৫ ক্রেডিট
-    
-    if not await is_subscribed(update, context):
-        btn = [[InlineKeyboardButton("Join Channel", url=f"https://t.me/SH_tricks")],
-               [InlineKeyboardButton("Joined ✅", callback_data="check_join")]]
-        await update.message.reply_text("বটটি ব্যবহার করতে আগে আমাদের চ্যানেলে জয়েন করুন!", reply_markup=InlineKeyboardMarkup(btn))
-        return
-
+    if user_id not in user_credits: user_credits[user_id] = 5
     kb = [['👕 Start Dressing'], ['💰 Get Credit', '📊 Balance']]
-    await update.message.reply_text(f"ব্যালেন্স: {user_credits[user_id]} ক্রেডিট।", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True))
+    await update.message.reply_text(f"স্বাগতম! ব্যালেন্স: {user_credits[user_id]}", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True))
 
 async def claim_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    user_id = query.from_user.id
-    user_credits[user_id] = user_credits.get(user_id, 0) + 1
-    await query.edit_message_text(f"১ ক্রেডিট যোগ হয়েছে। বর্তমান ব্যালেন্স: {user_credits[user_id]}")
+    user_credits[query.from_user.id] = user_credits.get(query.from_user.id, 0) + 3
+    await query.edit_message_text(f"3 ক্রেডিট যোগ হয়েছে। বর্তমান ব্যালেন্স: {user_credits[query.from_user.id]}")
 
 async def start_dressing(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if user_credits.get(update.effective_user.id, 0) < 1:
+    if user_credits.get(update.effective_user.id, 0) < 3:
         await update.message.reply_text("ক্রেডিট নেই! অ্যাড দেখে ক্রেডিট নিন।")
         return ConversationHandler.END
-    await update.message.reply_text("আপনার নিজের একটি ছবি পাঠান।")
+    await update.message.reply_text("আপনার নিজের একটি পরিষ্কার ছবি পাঠান।")
     return USER_PHOTO
 
 async def get_user_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,20 +68,19 @@ async def get_cloth_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.message.reply_text("⏳ AI কাজ করছে... অপেক্ষা করুন।")
     try:
         client = Client("yisol/IDM-VTON")
-        # আপডেট: এখানে সরাসরি প্রেডিক্ট করা হয়েছে api_name ছাড়াই
+        # আপডেট করা প্যারামিটার (এরর ফিক্সড)
         res = client.predict(
             dict={"background": handle_file(u_path), "layers": [], "composite": None},
             garm_img=handle_file(c_path),
             garment_des="outfit",
             is_checked=True,
-            is_checked_det=True,
             denoise_steps=30,
             seed=42
         )
         user_credits[update.effective_user.id] -= 1
-        await update.message.reply_photo(photo=open(res[0], 'rb'), caption="✅ ড্রেসিং সম্পন্ন হয়েছে!")
+        await update.message.reply_photo(photo=open(res[0], 'rb'), caption="✅ সম্পন্ন হয়েছে!")
     except Exception as e:
-        await update.message.reply_text(f"ভুল হয়েছে: {str(e)}")
+        await update.message.reply_text(f"দুঃখিত, আবার চেষ্টা করুন। এরর: {str(e)}")
     finally:
         if os.path.exists(u_path): os.remove(u_path)
         if os.path.exists(c_path): os.remove(c_path)
@@ -106,9 +88,7 @@ async def get_cloth_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    # Render এর জন্য পোর্ট ওপেন রাখা
     threading.Thread(target=run_health_check, daemon=True).start()
-    
     app = Application.builder().token(TOKEN).build()
     
     conv = ConversationHandler(
@@ -122,7 +102,6 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(claim_callback, pattern="claim"))
-    app.add_handler(CallbackQueryHandler(start, pattern="check_join"))
     app.add_handler(MessageHandler(filters.Regex('^📊 Balance'), lambda u, c: u.message.reply_text(f"ব্যালেন্স: {user_credits.get(u.effective_user.id, 0)}")))
     app.add_handler(MessageHandler(filters.Regex('^💰 Get Credit'), lambda u, c: u.message.reply_text("অ্যাড দেখুন:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Ad 1", url=ADS_MONETAG), InlineKeyboardButton("Ad 2", url=ADS_ADSTERRA)], [InlineKeyboardButton("Claim ✅", callback_data="claim")]]))))
     app.add_handler(conv)
