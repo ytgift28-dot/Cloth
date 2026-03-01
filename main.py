@@ -2,7 +2,6 @@ import os
 import logging
 import threading
 import time
-import asyncio
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler, CallbackQueryHandler
@@ -12,7 +11,8 @@ from gradio_client import Client, handle_file
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # --- কনফিগারেশন ---
-TOKEN = "8629018568:AAF83jERY2X_LtVFdqp-6atV-YFfvwr0P8w"
+TOKEN = "8629018568:AAHCCAhFMaS3BEH9eXqTmtDa7bD79Otw2Vw"
+HF_TOKEN = "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" # Hugging Face থেকে পাওয়া টোকেনটি এখানে দিন
 ADMIN_ID = 6941003064 
 CHANNEL_USERNAME = "@SH_tricks"
 ADS_MONETAG = "https://omg10.com/4/10644374"
@@ -23,8 +23,8 @@ user_credits = {}
 user_vip = {}       
 user_click_time = {} 
 daily_checkin = {}  
-is_maintenance = False # মেইনটেন্যান্স মোড
-active_tasks = 0      # কিউ বা সিরিয়াল ট্র্যাকিং
+is_maintenance = False 
+active_tasks = 0      
 
 USER_PHOTO, CLOTH_PHOTO = range(2)
 
@@ -33,7 +33,7 @@ class HealthCheck(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"SH Photo AI is Running!")
+        self.wfile.write(b"SH Photo AI is running with Token Support!")
 
 def run_port_server():
     port = int(os.environ.get("PORT", 10000))
@@ -47,10 +47,10 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (f"👤 **অ্যাডমিন প্যানেল**\n\n"
            f"মেইনটেন্যান্স মোড: {mode_status}\n"
            f"মোট ইউজার: {len(user_credits)}\n\n"
-           f"🔹 `/mode` - মেইনটেন্যান্স অন/অফ করতে\n"
+           f"🔹 `/mode` - মেইনটেন্যান্স অন/অফ\n"
            f"🔹 `/setvip id` - ভিআইপি দিতে\n"
            f"🔹 `/add id amount` - ক্রেডিট দিতে\n"
-           f"🔹 `/broadcast msg` - সবাইকে মেসেজ দিতে")
+           f"🔹 `/broadcast msg` - ব্রডকাস্ট")
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def toggle_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,10 +90,9 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if is_maintenance and user_id != ADMIN_ID:
-        await update.message.reply_text("⚠️ দুঃখিত, বট বর্তমানে মেইনটেন্যান্স মোডে আছে। কিছুক্ষণ পর চেষ্টা করুন।")
+        await update.message.reply_text("⚠️ দুঃখিত, বট বর্তমানে মেইনটেন্যান্স মোডে আছে।")
         return
 
-    # রেফারেল লজিক
     if context.args and context.args[0].isdigit():
         ref = int(context.args[0])
         if ref != user_id and user_id not in user_credits:
@@ -106,7 +105,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"ব্যালেন্স: {user_credits[user_id]} ক্রেডিট।", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True))
 
 async def daily_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if is_maintenance and update.effective_user.id != ADMIN_ID: return
     uid = update.effective_user.id
     today = time.strftime("%Y-%m-%d")
     if daily_checkin.get(uid) == today:
@@ -169,20 +167,21 @@ async def get_cloth_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u_path = context.user_data.get('u_p')
     uid = update.effective_user.id
     
-    active_tasks += 1 # সিরিয়াল বাড়ানো হলো
-    queue_msg = f"⏳ কিউতে আপনার সিরিয়াল: {active_tasks}\nAI কাজ শুরু করেছে..."
-    msg = await update.message.reply_text(queue_msg)
+    active_tasks += 1
+    msg = await update.message.reply_text(f"⏳ কিউতে আপনার সিরিয়াল: {active_tasks}\nAI কাজ শুরু করেছে...")
     
     try:
-        client = Client("yisol/IDM-VTON")
+        # টোকেন এখানে যুক্ত করা হয়েছে যা কোটা বাড়াবে
+        client = Client("yisol/IDM-VTON", hf_token=HF_TOKEN)
         res = client.predict(dict={"background": handle_file(u_path), "layers": [], "composite": None},
                              garm_img=handle_file(c_path), garment_des="outfit",
                              is_checked=True, denoise_steps=30, seed=42)
         if uid not in user_vip: user_credits[uid] -= 1
         await update.message.reply_photo(photo=open(res[0], 'rb'), caption="✅ সম্পন্ন! @SH_tricks")
-    except Exception as e: await update.message.reply_text(f"ভুল: {e}")
+    except Exception as e:
+        await update.message.reply_text(f"ভুল: {e}")
     finally:
-        active_tasks -= 1 # সিরিয়াল কমানো হলো
+        active_tasks -= 1
         if os.path.exists(u_path): os.remove(u_path)
         if os.path.exists(c_path): os.remove(c_path)
         await msg.delete()
